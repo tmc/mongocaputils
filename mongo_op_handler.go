@@ -24,7 +24,7 @@ func NewMongoOpHandler(packets chan gopacket.Packet) *MongoOpHandler {
 	}
 }
 
-func (m *mongoOpHandler) Loop() {
+func (m *MongoOpHandler) Loop() {
 	defer close(m.Finished)
 	for {
 		p, ok := <-m.packets

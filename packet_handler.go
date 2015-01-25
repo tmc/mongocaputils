@@ -21,7 +21,7 @@ func NewPacketHandler(pcapHandle *pcap.Handle, packetBufferSize int) *PacketHand
 		Packets: make(chan gopacket.Packet, packetBufferSize),
 	}
 }
-func (m *packetHandler) Handle(numToHandle int) error {
+func (m *PacketHandler) Handle(numToHandle int) error {
 	count := int64(0)
 	start := time.Now()
 	defer func() {
