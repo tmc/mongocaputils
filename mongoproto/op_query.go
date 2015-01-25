@@ -1,6 +1,12 @@
 package mongoproto
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"bytes"
+	"fmt"
+	"log"
+
+	"gopkg.in/mgo.v2/bson"
+)
 
 const (
 	_ OpQueryFlags = 1 << iota
@@ -21,9 +27,46 @@ type OpQueryFlags int32
 type OpQuery struct {
 	Header               MsgHeader
 	Flags                OpQueryFlags
-	FullCollectionName   string  // "dbname.collectionname"
-	NumberToSkip         int32   // number of documents to skip
-	NumberToReturn       int32   // number of documents to return
-	Query                *bson.D // query object
-	ReturnFieldsSelector *bson.D // Optional. Selector indicating the fields to return
+	FullCollectionName   string // "dbname.collectionname"
+	NumberToSkip         int32  // number of documents to skip
+	NumberToReturn       int32  // number of documents to return
+	Query                []byte // query object
+	ReturnFieldsSelector []byte // Optional. Selector indicating the fields to return
+}
+
+func (op *OpQuery) String() string {
+	var query interface{}
+	bson.Unmarshal(op.Query, &query)
+	return fmt.Sprintf("%#v - %v", op, query)
+}
+
+func (op *OpQuery) OpCode() OpCode {
+	return OpCodeQuery
+}
+
+func (op *OpQuery) FromWire(b []byte) {
+	if len(b) < 16 {
+		return
+	}
+	op.Flags = OpQueryFlags(getInt32(b, 0))
+	op.FullCollectionName = readCString(b[4:])
+
+	b = b[4+len(op.FullCollectionName)+1:]
+	op.NumberToSkip = getInt32(b, 0)
+	op.NumberToReturn = getInt32(b, 4)
+
+	b = b[8:]
+	query, err := ReadDocument(bytes.NewReader(b))
+	log.Println(err)
+	op.Query = query
+	b = b[len(query):]
+
+	returnFields, err := ReadDocument(bytes.NewReader(b))
+	if err == nil {
+		op.ReturnFieldsSelector = returnFields
+	}
+}
+
+func (op *OpQuery) ToWire() []byte {
+	return nil
 }

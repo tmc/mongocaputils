@@ -1,8 +1,8 @@
 package mongoproto
 
-import (
-	"fmt"
-)
+import "fmt"
+
+var ErrNotMsg = fmt.Errorf("buffer is too small to be a Mongo message")
 
 type Op interface {
 	OpCode() OpCode
@@ -19,17 +19,18 @@ func (e ErrUnknownOpcode) Error() string {
 // OpFromWire reads an Op from a byte slice
 func OpFromWire(b []byte) (Op, error) {
 	if len(b) < MsgHeaderLen {
-		return nil, fmt.Errorf("buffer too small, need at least %d, got %d",
-			MsgHeaderLen, len(b))
+		return nil, ErrNotMsg
 	}
 	var m MsgHeader
-	m.MessageLength = getInt32(b, 0)
-	m.RequestID = getInt32(b, 4)
-	m.ResponseTo = getInt32(b, 8)
-	m.OpCode = OpCode(getInt32(b, 12))
+	m.FromWire(b)
 
+	var result Op
 	switch m.OpCode {
+	case OpCodeQuery:
+		result = &OpQuery{Header: m}
 	default:
 		return nil, ErrUnknownOpcode(m.OpCode)
 	}
+	result.FromWire(b[MsgHeaderLen:])
+	return result, nil
 }

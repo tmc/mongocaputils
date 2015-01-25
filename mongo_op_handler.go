@@ -35,6 +35,9 @@ func (m *MongoOpHandler) Loop() {
 		if err == ErrNoPayload {
 			continue
 		}
+		if err == mongoproto.ErrNotMsg {
+			continue
+		}
 		if err != nil {
 			log.Println("error handling mongo packet:", err)
 			continue

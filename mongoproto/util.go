@@ -31,22 +31,13 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 	return doc, nil
 }
 
-const x00 = byte(0)
-
-// readCString reads a null turminated string as defined by BSON from the
-// reader. Note, the return value includes the trailing null byte.
-func readCString(r io.Reader) ([]byte, error) {
-	var b []byte
-	var n [1]byte
-	for {
-		if _, err := io.ReadFull(r, n[:]); err != nil {
-			return nil, err
-		}
-		b = append(b, n[0])
-		if n[0] == x00 {
-			return b, nil
+func readCString(b []byte) string {
+	for i := 0; i < len(b); i++ {
+		if b[i] == 0 {
+			return string(b[:i])
 		}
 	}
+	return ""
 }
 
 // all data in the MongoDB wire protocol is little-endian.
