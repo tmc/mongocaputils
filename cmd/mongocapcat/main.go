@@ -10,7 +10,9 @@ import (
 )
 
 var (
-	pcapFile = flag.String("f", "-", "pcap file (or '-' for stdin)")
+	pcapFile      = flag.String("f", "-", "pcap file (or '-' for stdin)")
+	packetBufSize = flag.Int("packet-buf-size", 10000, "size of internal buffer")
+	allowDrops    = flag.Bool("allow-drops", true, "if true new packets will be discarded after the packet buffer is full")
 )
 
 func main() {
@@ -21,7 +23,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "error opening pcap file:", err)
 		os.Exit(1)
 	}
-	h := mongocaputils.NewPacketHandler(pcap, 100)
+	h := mongocaputils.NewPacketHandler(pcap, *packetBufSize, *allowDrops)
 	m := mongocaputils.NewMongoOpHandler(h.Packets)
 	go m.Loop()
 

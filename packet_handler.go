@@ -10,15 +10,17 @@ import (
 )
 
 type PacketHandler struct {
-	pcap       *pcap.Handle
-	Packets    chan gopacket.Packet
-	numDropped int64
+	pcap         *pcap.Handle
+	Packets      chan gopacket.Packet
+	numDropped   int64
+	dropsAllowed bool
 }
 
-func NewPacketHandler(pcapHandle *pcap.Handle, packetBufferSize int) *PacketHandler {
+func NewPacketHandler(pcapHandle *pcap.Handle, packetBufferSize int, dropsAllowed bool) *PacketHandler {
 	return &PacketHandler{
-		pcap:    pcapHandle,
-		Packets: make(chan gopacket.Packet, packetBufferSize),
+		pcap:         pcapHandle,
+		Packets:      make(chan gopacket.Packet, packetBufferSize),
+		dropsAllowed: dropsAllowed,
 	}
 }
 func (m *PacketHandler) Handle(numToHandle int) error {
@@ -51,10 +53,15 @@ func (m *PacketHandler) Handle(numToHandle int) error {
 			log.Println("Count exceeds requested packets, returning.")
 			return nil
 		}
-		select {
-		case m.Packets <- pkt:
-		default:
-			m.numDropped++
+
+		if m.dropsAllowed {
+			select {
+			case m.Packets <- pkt:
+			default:
+				m.numDropped++
+			}
+		} else {
+			m.Packets <- pkt
 		}
 		count++
 	}

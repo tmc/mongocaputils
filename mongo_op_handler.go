@@ -26,6 +26,7 @@ func NewMongoOpHandler(packets chan gopacket.Packet) *MongoOpHandler {
 
 func (m *MongoOpHandler) Loop() {
 	defer close(m.Finished)
+	count := 0
 	for {
 		p, ok := <-m.packets
 		if !ok {
@@ -42,7 +43,8 @@ func (m *MongoOpHandler) Loop() {
 			log.Println("error handling mongo packet:", err)
 			continue
 		}
-		fmt.Println("Parsed mongo op:", op)
+		count++
+		fmt.Printf("%3d: %v\n", count, op)
 	}
 }
 
