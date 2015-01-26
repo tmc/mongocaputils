@@ -28,6 +28,8 @@ func OpFromWire(b []byte) (Op, error) {
 	switch m.OpCode {
 	case OpCodeQuery:
 		result = &OpQuery{Header: m}
+	case OpCodeReply:
+		result = &OpReply{Header: m}
 	default:
 		return nil, ErrUnknownOpcode(m.OpCode)
 	}

@@ -25,6 +25,7 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 	size := getInt32(sizeRaw[:], 0)
 	doc := make([]byte, size)
 	setInt32(doc, 0, size)
+
 	if _, err := io.ReadFull(r, doc[4:]); err != nil {
 		return nil, err
 	}
@@ -54,4 +55,15 @@ func setInt32(b []byte, pos int, i int32) {
 	b[pos+1] = byte(i >> 8)
 	b[pos+2] = byte(i >> 16)
 	b[pos+3] = byte(i >> 24)
+}
+
+func getInt64(b []byte, pos int) int64 {
+	return (int64(b[pos+0])) |
+		(int64(b[pos+1]) << 8) |
+		(int64(b[pos+2]) << 16) |
+		(int64(b[pos+3]) << 24) |
+		(int64(b[pos+4]) << 32) |
+		(int64(b[pos+5]) << 40) |
+		(int64(b[pos+6]) << 48) |
+		(int64(b[pos+7]) << 56)
 }
