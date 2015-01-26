@@ -2,9 +2,10 @@ package mongoproto
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"log"
 
+	"github.com/mongodb/mongo-tools/common/bsonutil"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -37,7 +38,15 @@ type OpQuery struct {
 func (op *OpQuery) String() string {
 	var query interface{}
 	bson.Unmarshal(op.Query, &query)
-	return fmt.Sprintf("%#v - %v", op, query)
+	queryAsJSON, err := bsonutil.ConvertBSONValueToJSON(query)
+	if err != nil {
+		return fmt.Sprintf("%#v - %v", op, err)
+	}
+	asJSON, err := json.Marshal(queryAsJSON)
+	if err != nil {
+		return fmt.Sprintf("%#v - %v", op, err)
+	}
+	return fmt.Sprintf("OpQuery %v %v", op.FullCollectionName, string(asJSON))
 }
 
 func (op *OpQuery) OpCode() OpCode {
@@ -56,11 +65,12 @@ func (op *OpQuery) FromWire(b []byte) {
 	op.NumberToReturn = getInt32(b, 4)
 
 	b = b[8:]
-	query, err := ReadDocument(bytes.NewReader(b))
-	log.Println(err)
-	op.Query = query
-	b = b[len(query):]
+	op.Query, _ = ReadDocument(bytes.NewReader(b))
+	b = b[len(op.Query):]
 
+	if len(b) < 4 {
+		return
+	}
 	returnFields, err := ReadDocument(bytes.NewReader(b))
 	if err == nil {
 		op.ReturnFieldsSelector = returnFields
