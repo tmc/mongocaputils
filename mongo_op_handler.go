@@ -6,9 +6,9 @@ import (
 
 	"code.google.com/p/gopacket"
 	"code.google.com/p/gopacket/tcpassembly"
-	"code.google.com/p/gopacket/tcpassembly/tcpreader"
 
 	"github.com/tmc/mongocaputils/mongoproto"
+	"github.com/tmc/mongocaputils/tcpreaderwrapper"
 )
 
 // TODO(tmc): reorder ops according to frame timings
@@ -22,7 +22,7 @@ func NewMongoOpStream() *mongoOpStream {
 }
 
 func (s *mongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
-	r := tcpreader.NewReaderStream()
+	r := tcpreaderwrapper.NewReaderStreamWrapper()
 	go s.handleStream(&r)
 	return &r
 }
@@ -32,7 +32,8 @@ func (s *mongoOpStream) Close() error {
 	return nil
 }
 
-func (s *mongoOpStream) handleStream(r io.Reader) {
+func (s *mongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
+	log.Println("new stream")
 	for {
 		op, err := mongoproto.OpFromReader(r)
 		if err == io.EOF {
