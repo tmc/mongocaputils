@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 
 	"github.com/mongodb/mongo-tools/common/bsonutil"
@@ -35,7 +36,7 @@ func (op *OpReply) String() string {
 	docs := make([]string, 0, op.NumberReturned)
 	var doc interface{}
 	for i := int32(0); i < op.NumberReturned; i++ {
-		bson.Unmarshal(op.Documents[i], &doc)
+		_ = bson.Unmarshal(op.Documents[i], &doc)
 		jsonDoc, err := bsonutil.ConvertBSONValueToJSON(doc)
 		if err != nil {
 			return fmt.Sprintf("%#v - %v", op, err)
@@ -50,7 +51,26 @@ func (op *OpReply) OpCode() OpCode {
 	return OpCodeReply
 }
 
-func (op *OpReply) FromWire(b []byte) {
+func (op *OpReply) FromReader(r io.Reader) error {
+	var b [20]byte
+	if _, err := io.ReadFull(r, b[:]); err != nil {
+		return err
+	}
+	op.Flags = OpReplyFlags(getInt32(b[:], 0))
+	op.CursorID = getInt64(b[:], 4)
+	op.StartingFrom = getInt32(b[:], 12)
+	op.NumberReturned = getInt32(b[:], 16)
+	for i := int32(0); i < op.NumberReturned; i++ {
+		doc, err := ReadDocument(r)
+		if err != nil {
+			return err
+		}
+		op.Documents = append(op.Documents, doc)
+	}
+	return nil
+}
+
+func (op *OpReply) fromWire(b []byte) {
 	if len(b) < 20 {
 		return
 	}
@@ -60,11 +80,10 @@ func (op *OpReply) FromWire(b []byte) {
 	op.NumberReturned = getInt32(b, 16)
 
 	offset := 20
-
 	for i := int32(0); i < op.NumberReturned; i++ {
 		doc, err := ReadDocument(bytes.NewReader(b[offset:]))
 		if err != nil {
-			// TODO(tmc) probalby should return an error from FromWire
+			// TODO(tmc) probably should return an error from fromWire
 			log.Println("doc err:", err, len(b[offset:]))
 			break
 		}
@@ -73,6 +92,6 @@ func (op *OpReply) FromWire(b []byte) {
 	}
 }
 
-func (op *OpReply) ToWire() []byte {
+func (op *OpReply) toWire() []byte {
 	return nil
 }

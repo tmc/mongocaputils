@@ -1,5 +1,7 @@
 package mongoproto
 
+import "fmt"
+
 // OpCode allow identifying the type of operation:
 //
 // http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/#request-opcodes
@@ -27,7 +29,7 @@ func (c OpCode) String() string {
 	case OpCodeKillCursors:
 		return "kill_cursors"
 	default:
-		return "UNKNOWN"
+		return fmt.Sprintf("UNKNOWN(%d)", c)
 	}
 }
 

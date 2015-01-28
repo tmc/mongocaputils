@@ -1,28 +1,35 @@
 package mongoproto
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+)
 
+// ErrNotMsg is returned if a provided buffer is too small to contain a Mongo message
 var ErrNotMsg = fmt.Errorf("buffer is too small to be a Mongo message")
 
+// Op is a Mongo operation
 type Op interface {
 	OpCode() OpCode
-	ToWire() []byte
-	FromWire(b []byte)
+	FromReader(io.Reader) error
 }
 
+// ErrUnknownOpcode is an error that represents an unrecognized opcode.
 type ErrUnknownOpcode int
 
 func (e ErrUnknownOpcode) Error() string {
 	return fmt.Sprintf("Unknown opcode %d", e)
 }
 
-// OpFromWire reads an Op from a byte slice
-func OpFromWire(b []byte) (Op, error) {
-	if len(b) < MsgHeaderLen {
-		return nil, ErrNotMsg
+// OpFromReader reads an Op from an io.Reader
+func OpFromReader(r io.Reader) (Op, error) {
+	b := make([]byte, MsgHeaderLen)
+	_, err := io.ReadFull(r, b)
+	if err != nil {
+		return nil, err
 	}
 	var m MsgHeader
-	m.FromWire(b)
+	m.fromWire(b)
 
 	var result Op
 	switch m.OpCode {
@@ -30,9 +37,13 @@ func OpFromWire(b []byte) (Op, error) {
 		result = &OpQuery{Header: m}
 	case OpCodeReply:
 		result = &OpReply{Header: m}
+	case OpCodeGetMore:
+		result = &OpGetMore{Header: m}
+	case OpCodeInsert:
+		result = &OpInsert{Header: m}
 	default:
-		return nil, ErrUnknownOpcode(m.OpCode)
+		result = &OpUnknown{Header: m}
 	}
-	result.FromWire(b[MsgHeaderLen:])
-	return result, nil
+	err = result.FromReader(r)
+	return result, err
 }

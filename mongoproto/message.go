@@ -19,8 +19,19 @@ type MsgHeader struct {
 	OpCode OpCode
 }
 
-// ToWire converts the MsgHeader to the wire protocol
-func (m MsgHeader) ToWire() []byte {
+func ReadHeader(r io.Reader) (*MsgHeader, error) {
+	var d [MsgHeaderLen]byte
+	b := d[:]
+	if _, err := io.ReadFull(r, b); err != nil {
+		return nil, err
+	}
+	h := MsgHeader{}
+	h.fromWire(b)
+	return &h, nil
+}
+
+// toWire converts the MsgHeader to the wire protocol
+func (m MsgHeader)  toWire() []byte {
 	var d [MsgHeaderLen]byte
 	b := d[:]
 	setInt32(b, 0, m.MessageLength)
@@ -30,8 +41,8 @@ func (m MsgHeader) ToWire() []byte {
 	return b
 }
 
-// FromWire reads the wirebytes into this object
-func (m *MsgHeader) FromWire(b []byte) {
+// fromWire reads the wirebytes into this object
+func (m *MsgHeader) fromWire(b []byte) {
 	m.MessageLength = getInt32(b, 0)
 	m.RequestID = getInt32(b, 4)
 	m.ResponseTo = getInt32(b, 8)
@@ -39,7 +50,7 @@ func (m *MsgHeader) FromWire(b []byte) {
 }
 
 func (m *MsgHeader) WriteTo(w io.Writer) error {
-	b := m.ToWire()
+	b := m.toWire()
 	n, err := w.Write(b)
 	if err != nil {
 		return err
@@ -60,15 +71,4 @@ func (m *MsgHeader) String() string {
 		m.RequestID,
 		m.ResponseTo,
 	)
-}
-
-func ReadHeader(r io.Reader) (*MsgHeader, error) {
-	var d [MsgHeaderLen]byte
-	b := d[:]
-	if _, err := io.ReadFull(r, b); err != nil {
-		return nil, err
-	}
-	h := MsgHeader{}
-	h.FromWire(b)
-	return &h, nil
 }

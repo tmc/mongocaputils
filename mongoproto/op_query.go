@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/mongodb/mongo-tools/common/bsonutil"
 	"gopkg.in/mgo.v2/bson"
@@ -37,7 +38,7 @@ type OpQuery struct {
 
 func (op *OpQuery) String() string {
 	var query interface{}
-	bson.Unmarshal(op.Query, &query)
+	_ = bson.Unmarshal(op.Query, &query)
 	queryAsJSON, err := bsonutil.ConvertBSONValueToJSON(query)
 	if err != nil {
 		return fmt.Sprintf("%#v - %v", op, err)
@@ -53,7 +54,7 @@ func (op *OpQuery) OpCode() OpCode {
 	return OpCodeQuery
 }
 
-func (op *OpQuery) FromWire(b []byte) {
+func (op *OpQuery) fromWire(b []byte) {
 	if len(b) < 16 {
 		return
 	}
@@ -77,6 +78,38 @@ func (op *OpQuery) FromWire(b []byte) {
 	}
 }
 
-func (op *OpQuery) ToWire() []byte {
+func (op *OpQuery) FromReader(r io.Reader) error {
+	var b [8]byte
+	if _, err := io.ReadFull(r, b[:4]); err != nil {
+		return err
+	}
+	op.Flags = OpQueryFlags(getInt32(b[:], 0))
+	name, err := readCStringFromReader(r)
+	if err != nil {
+		return err
+	}
+	op.FullCollectionName = string(name)
+
+	if _, err := io.ReadFull(r, b[:]); err != nil {
+		return err
+	}
+	op.NumberToSkip = getInt32(b[:], 0)
+	op.NumberToReturn = getInt32(b[:], 4)
+
+	op.Query, err = ReadDocument(r)
+	if err != nil {
+		return err
+	}
+	if int(op.Header.MessageLength) > len(op.Query)+len(op.FullCollectionName)+1+12 {
+
+		op.ReturnFieldsSelector, err = ReadDocument(r)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (op *OpQuery) toWire() []byte {
 	return nil
 }

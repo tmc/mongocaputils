@@ -24,12 +24,30 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 	}
 	size := getInt32(sizeRaw[:], 0)
 	doc := make([]byte, size)
+	if size == 0 {
+		return doc, nil
+	}
 	setInt32(doc, 0, size)
 
 	if _, err := io.ReadFull(r, doc[4:]); err != nil {
 		return nil, err
 	}
 	return doc, nil
+}
+
+// readCStringFromReader reads a null turminated string from an io.Reader.
+func readCStringFromReader(r io.Reader) ([]byte, error) {
+	var b []byte
+	var n [1]byte
+	for {
+		if _, err := io.ReadFull(r, n[:]); err != nil {
+			return nil, err
+		}
+		if n[0] == 0 {
+			return b, nil
+		}
+		b = append(b, n[0])
+	}
 }
 
 func readCString(b []byte) string {
