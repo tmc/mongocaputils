@@ -6,26 +6,42 @@ import (
 	"time"
 
 	"code.google.com/p/gopacket"
+	"code.google.com/p/gopacket/layers"
 	"code.google.com/p/gopacket/pcap"
+	"code.google.com/p/gopacket/tcpassembly"
 )
 
 type PacketHandler struct {
-	pcap         *pcap.Handle
-	Packets      chan gopacket.Packet
-	numDropped   int64
-	dropsAllowed bool
+	pcap       *pcap.Handle
+	numDropped int64
 }
 
-func NewPacketHandler(pcapHandle *pcap.Handle, packetBufferSize int, dropsAllowed bool) *PacketHandler {
+func NewPacketHandler(pcapHandle *pcap.Handle) *PacketHandler {
 	return &PacketHandler{
-		pcap:         pcapHandle,
-		Packets:      make(chan gopacket.Packet, packetBufferSize),
-		dropsAllowed: dropsAllowed,
+		pcap: pcapHandle,
 	}
 }
-func (m *PacketHandler) Handle(numToHandle int) error {
+
+type StreamHandler interface {
+	tcpassembly.StreamFactory
+	io.Closer
+}
+
+func (m *PacketHandler) Handle(streamHandler StreamHandler, numToHandle int) error {
+
 	count := int64(0)
 	start := time.Now()
+	if numToHandle > 0 {
+		log.Println("Processing", numToHandle, "packets")
+	}
+
+	source := gopacket.NewPacketSource(m.pcap, m.pcap.LinkType())
+	streamPool := tcpassembly.NewStreamPool(streamHandler)
+	assembler := tcpassembly.NewAssembler(streamPool)
+	defer func() {
+		assembler.FlushAll()
+		streamHandler.Close()
+	}()
 	defer func() {
 		log.Println("Dropped", m.numDropped,
 			"packets out of", count)
@@ -34,36 +50,28 @@ func (m *PacketHandler) Handle(numToHandle int) error {
 			float64(count-m.numDropped)/runTime,
 			"packets per second")
 	}()
-	if numToHandle > 0 {
-		log.Println("Processing", numToHandle, "packets")
-	}
-
-	defer close(m.Packets)
-
-	source := gopacket.NewPacketSource(m.pcap, m.pcap.LinkType())
 	for {
 		pkt, err := source.NextPacket()
+
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			log.Println("Error:", err)
 			continue
 		}
-		if numToHandle > 0 && count >= int64(numToHandle) {
-			log.Println("Count exceeds requested packets, returning.")
-			return nil
+
+		if tcpLayer := pkt.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+			assembler.AssembleWithTimestamp(
+				pkt.TransportLayer().TransportFlow(),
+				tcpLayer.(*layers.TCP),
+				pkt.Metadata().Timestamp)
 		}
 
-		if m.dropsAllowed {
-			select {
-			case m.Packets <- pkt:
-			default:
-				m.numDropped++
-			}
-		} else {
-			m.Packets <- pkt
-		}
 		count++
+		if numToHandle > 0 && count >= int64(numToHandle) {
+			log.Println("Count exceeds requested packets, returning.")
+			break
+		}
 	}
 	return nil
 }
