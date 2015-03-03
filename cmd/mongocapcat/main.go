@@ -22,7 +22,7 @@ func main() {
 		os.Exit(1)
 	}
 	h := mongocaputils.NewPacketHandler(pcap)
-	m := mongocaputils.NewMongoOpStream()
+	m := mongocaputils.NewMongoOpStream(100)
 
 	ch := make(chan struct{})
 	go func() {
@@ -30,7 +30,7 @@ func main() {
 		i := 0
 		for op := range m.Ops {
 			i++
-			fmt.Println(i, op)
+			fmt.Printf("%3d %v\n", i, op)
 		}
 	}()
 

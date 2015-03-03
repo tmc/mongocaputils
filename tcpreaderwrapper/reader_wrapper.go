@@ -17,6 +17,7 @@ func NewReaderStreamWrapper() ReaderStreamWrapper {
 		ReaderStream: tcpreader.NewReaderStream(),
 		Reassemblies: make([]ReassemblyInfo, 0),
 	}
+	r.ReaderStream.ReaderStreamOptions.LossErrors = true
 	return r
 }
 
