@@ -23,13 +23,11 @@ func (e ErrUnknownOpcode) Error() string {
 
 // OpFromReader reads an Op from an io.Reader
 func OpFromReader(r io.Reader) (Op, error) {
-	b := make([]byte, MsgHeaderLen)
-	_, err := io.ReadFull(r, b)
+	msg, err := ReadHeader(r)
 	if err != nil {
 		return nil, err
 	}
-	var m MsgHeader
-	m.fromWire(b)
+	m := *msg
 
 	var result Op
 	switch m.OpCode {

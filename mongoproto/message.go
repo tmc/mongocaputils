@@ -31,7 +31,7 @@ func ReadHeader(r io.Reader) (*MsgHeader, error) {
 }
 
 // toWire converts the MsgHeader to the wire protocol
-func (m MsgHeader)  toWire() []byte {
+func (m MsgHeader) toWire() []byte {
 	var d [MsgHeaderLen]byte
 	b := d[:]
 	setInt32(b, 0, m.MessageLength)

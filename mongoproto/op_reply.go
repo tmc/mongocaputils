@@ -33,10 +33,10 @@ type OpReply struct {
 }
 
 func (op *OpReply) String() string {
-	docs := make([]string, 0, op.NumberReturned)
+	docs := make([]string, 0, len(op.Documents))
 	var doc interface{}
-	for i := int32(0); i < op.NumberReturned; i++ {
-		_ = bson.Unmarshal(op.Documents[i], &doc)
+	for _, d := range op.Documents {
+		_ = bson.Unmarshal(d, &doc)
 		jsonDoc, err := bsonutil.ConvertBSONValueToJSON(doc)
 		if err != nil {
 			return fmt.Sprintf("%#v - %v", op, err)

@@ -1,9 +1,12 @@
 package mongoproto
 
 import (
-	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
-	"log"
+
+	"github.com/mongodb/mongo-tools/common/bsonutil"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -23,6 +26,21 @@ type OpInsert struct {
 
 func (op *OpInsert) OpCode() OpCode {
 	return OpCodeInsert
+}
+
+func (op *OpInsert) String() string {
+	docs := make([]string, 0, len(op.Documents))
+	var doc interface{}
+	for _, d := range op.Documents {
+		_ = bson.Unmarshal(d, &doc)
+		jsonDoc, err := bsonutil.ConvertBSONValueToJSON(doc)
+		if err != nil {
+			return fmt.Sprintf("%#v - %v", op, err)
+		}
+		asJSON, _ := json.Marshal(jsonDoc)
+		docs = append(docs, string(asJSON))
+	}
+	return fmt.Sprintf("OpInsert %v %v", op.FullCollectionName, docs)
 }
 
 func (op *OpInsert) FromReader(r io.Reader) error {
@@ -49,26 +67,6 @@ func (op *OpInsert) FromReader(r io.Reader) error {
 		op.Documents = append(op.Documents, doc)
 	}
 	return nil
-}
-
-func (op *OpInsert) fromWire(b []byte) {
-	if len(b) < 5 {
-		return
-	}
-	op.Flags = OpInsertFlags(getInt32(b, 0))
-	op.FullCollectionName = readCString(b[4:])
-	b = b[len(op.FullCollectionName)+1:]
-	op.Documents = make([][]byte, 0)
-	offset := 0
-	for len(b) > 0 {
-		doc, err := ReadDocument(bytes.NewReader(b[offset:]))
-		if err != nil {
-			log.Println("doc err:", err, len(b[offset:]))
-			break
-		}
-		offset += len(doc)
-		op.Documents = append(op.Documents, doc)
-	}
 }
 
 func (op *OpInsert) toWire() []byte {

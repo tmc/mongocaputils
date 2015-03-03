@@ -1,7 +1,6 @@
 package mongoproto
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,7 +37,9 @@ type OpQuery struct {
 
 func (op *OpQuery) String() string {
 	var query interface{}
-	_ = bson.Unmarshal(op.Query, &query)
+	if err := bson.Unmarshal(op.Query, &query); err != nil {
+		return "(error unmarshalling)"
+	}
 	queryAsJSON, err := bsonutil.ConvertBSONValueToJSON(query)
 	if err != nil {
 		return fmt.Sprintf("%#v - %v", op, err)
@@ -52,30 +53,6 @@ func (op *OpQuery) String() string {
 
 func (op *OpQuery) OpCode() OpCode {
 	return OpCodeQuery
-}
-
-func (op *OpQuery) fromWire(b []byte) {
-	if len(b) < 16 {
-		return
-	}
-	op.Flags = OpQueryFlags(getInt32(b, 0))
-	op.FullCollectionName = readCString(b[4:])
-
-	b = b[4+len(op.FullCollectionName)+1:]
-	op.NumberToSkip = getInt32(b, 0)
-	op.NumberToReturn = getInt32(b, 4)
-
-	b = b[8:]
-	op.Query, _ = ReadDocument(bytes.NewReader(b))
-	b = b[len(op.Query):]
-
-	if len(b) < 4 {
-		return
-	}
-	returnFields, err := ReadDocument(bytes.NewReader(b))
-	if err == nil {
-		op.ReturnFieldsSelector = returnFields
-	}
 }
 
 func (op *OpQuery) FromReader(r io.Reader) error {
@@ -100,8 +77,8 @@ func (op *OpQuery) FromReader(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	if int(op.Header.MessageLength) > len(op.Query)+len(op.FullCollectionName)+1+12 {
-
+	currentRead := len(op.Query) + len(op.FullCollectionName) + 1 + 12 + MsgHeaderLen
+	if int(op.Header.MessageLength) > currentRead {
 		op.ReturnFieldsSelector, err = ReadDocument(r)
 		if err != nil {
 			return err
