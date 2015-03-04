@@ -1,4 +1,5 @@
 // package tcpreaderwrapper wraps a gopacket tcpassembly.tcpreader.ReaderStream
+// and holds recent resassemblies to fetch timing information
 package tcpreaderwrapper
 
 import (
@@ -17,7 +18,7 @@ func NewReaderStreamWrapper() ReaderStreamWrapper {
 		ReaderStream: tcpreader.NewReaderStream(),
 		Reassemblies: make([]ReassemblyInfo, 0),
 	}
-	r.ReaderStream.ReaderStreamOptions.LossErrors = true
+	//	r.ReaderStream.ReaderStreamOptions.LossErrors = true
 	return r
 }
 
