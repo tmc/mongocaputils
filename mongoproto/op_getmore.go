@@ -16,7 +16,7 @@ func (op *OpGetMore) OpCode() OpCode {
 }
 
 func (op *OpGetMore) FromReader(r io.Reader) error {
-	var b [8]byte
+	var b [12]byte
 	if _, err := io.ReadFull(r, b[:4]); err != nil {
 		return err
 	}
@@ -25,6 +25,9 @@ func (op *OpGetMore) FromReader(r io.Reader) error {
 		return err
 	}
 	op.FullCollectionName = string(name)
+	if _, err := io.ReadFull(r, b[:12]); err != nil {
+		return err
+	}
 	op.NumberToReturn = getInt32(b[:], 0)
 	op.CursorID = getInt64(b[:], 4)
 	if _, err := io.ReadFull(r, b[:]); err != nil {
