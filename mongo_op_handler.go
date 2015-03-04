@@ -53,6 +53,7 @@ func (s *mongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
 }
 
 func (s *mongoOpStream) Close() error {
+	close(s.opsWithTimes)
 	s.opsWithTimes = nil
 	return nil
 }
@@ -67,15 +68,15 @@ func (s *mongoOpStream) handleOps() {
 		heap.Push(s.opHeap, op)
 		if len(*s.opHeap) >= cap(*s.opHeap) {
 			op := heap.Pop(s.opHeap).(OpWithTime)
-			fmt.Printf("%f %v\n\n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
+			fmt.Printf("%f %v\n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
 			s.Ops <- op.Op
 			//s.Ops <- s.opHeap.Pop().(OpWithTime).Op
 		}
 	}
 	for len(*s.opHeap) > 0 {
 		op := heap.Pop(s.opHeap).(OpWithTime)
+		fmt.Printf("%f %v \n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
 		s.Ops <- op.Op
-		fmt.Printf("%f %v \n\n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
 		//s.Ops <- s.opHeap.Pop().(OpWithTime).Op
 	}
 }
@@ -94,11 +95,16 @@ func (s *mongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
 			return
 		}
 		if err != nil {
-			log.Println("Error parsing op:", err)
+			log.Println("error parsing op:", err)
 			return
 		}
-		seen := r.Reassemblies[0].Seen
+		seen := time.Now()
+		for _, r := range r.Reassemblies {
+			if r.NumBytes > 0 {
+				seen = r.Seen
+			}
+		}
 		s.opsWithTimes <- OpWithTime{op, seen}
-		//r.Reassemblies = r.Reassemblies[:0]
+		r.Reassemblies = r.Reassemblies[:0]
 	}
 }
