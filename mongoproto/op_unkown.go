@@ -19,6 +19,9 @@ func (op *OpUnknown) OpCode() OpCode {
 }
 
 func (op *OpUnknown) FromReader(r io.Reader) error {
+	if op.Header.MessageLength < MsgHeaderLen {
+		return nil
+	}
 	op.Body = make([]byte, op.Header.MessageLength-MsgHeaderLen)
 	_, err := io.ReadFull(r, op.Body)
 	return err

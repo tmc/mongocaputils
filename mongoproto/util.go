@@ -1,6 +1,13 @@
 package mongoproto
 
-import "io"
+import (
+	"errors"
+	"io"
+)
+
+var (
+	ErrInvalidSize = errors.New("mongoproto: got invalid document size")
+)
 
 // CopyMessage copies reads & writes an entire message.
 func CopyMessage(w io.Writer, r io.Reader) error {
@@ -23,8 +30,14 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	size := getInt32(sizeRaw[:], 0)
+	if size < 0 {
+		return nil, ErrInvalidSize
+	}
 	doc := make([]byte, size)
 	if size == 0 {
+		return doc, nil
+	}
+	if size < 4 {
 		return doc, nil
 	}
 	setInt32(doc, 0, size)
