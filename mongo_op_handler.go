@@ -12,6 +12,7 @@ import (
 
 	"code.google.com/p/gopacket"
 	"code.google.com/p/gopacket/tcpassembly"
+	"code.google.com/p/gopacket/tcpassembly/tcpreader"
 
 	"github.com/tmc/mongocaputils/mongoproto"
 	"github.com/tmc/mongocaputils/tcpreaderwrapper"
@@ -86,19 +87,37 @@ func (s *mongoOpStream) readOp(r io.Reader) (mongoproto.Op, error) {
 }
 
 func (s *mongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
+	lastSeen := s.firstSeen
 	for {
 		op, err := s.readOp(r)
 		if err == io.EOF {
-			log.Println("stopping")
 			discarded, err := ioutil.ReadAll(r)
-			fmt.Println("discarded ", len(discarded), err)
+			if len(discarded) != 0 || err != nil {
+				fmt.Println("discarded ", len(discarded), err)
+			}
+			return
+		}
+		if err == tcpreader.DataLost {
+			log.Println("ignoring incomplete packet")
+			discarded, err := ioutil.ReadAll(r)
+			if len(discarded) != 0 || err != nil {
+				fmt.Println("discarded ", len(discarded), err)
+			}
 			return
 		}
 		if err != nil {
 			log.Println("error parsing op:", err)
+			discarded, err := ioutil.ReadAll(r)
+			if len(discarded) != 0 || err != nil {
+				fmt.Println("discarded ", len(discarded), err)
+			}
 			return
 		}
-		seen := time.Now()
+		seen := lastSeen
+		if len(r.Reassemblies) > 0 {
+			seen = r.Reassemblies[0].Seen
+			lastSeen = seen
+		}
 		for _, r := range r.Reassemblies {
 			if r.NumBytes > 0 {
 				seen = r.Seen
