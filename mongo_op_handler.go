@@ -67,7 +67,7 @@ func (s *mongoOpStream) handleOps() {
 	defer close(s.Ops)
 	for op := range s.opsWithTimes {
 		heap.Push(s.opHeap, op)
-		if len(*s.opHeap) >= cap(*s.opHeap) {
+		if len(*s.opHeap) == cap(*s.opHeap) {
 			op := heap.Pop(s.opHeap).(OpWithTime)
 			fmt.Printf("%f %v\n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
 			s.Ops <- op.Op
