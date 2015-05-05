@@ -1,11 +1,11 @@
 package mongoproto
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/mongodb/mongo-tools/common/bsonutil"
+	"github.com/mongodb/mongo-tools/common/json"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -42,11 +42,11 @@ func (op *OpQuery) String() string {
 	}
 	queryAsJSON, err := bsonutil.ConvertBSONValueToJSON(query)
 	if err != nil {
-		return fmt.Sprintf("%#v - %v", op, err)
+		return fmt.Sprintf("ConvertBSONValueToJSON err: %#v - %v", op, err)
 	}
 	asJSON, err := json.Marshal(queryAsJSON)
 	if err != nil {
-		return fmt.Sprintf("%#v - %v", op, err)
+		return fmt.Sprintf("json marshal err: %#v - %v", op, err)
 	}
 	return fmt.Sprintf("OpQuery %v %v", op.FullCollectionName, string(asJSON))
 }
