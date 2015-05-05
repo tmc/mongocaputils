@@ -18,24 +18,22 @@ import (
 	"github.com/tmc/mongocaputils/tcpreaderwrapper"
 )
 
-// TODO(tmc): reorder ops according to frame timings
+type MongoOpStream struct {
+	Ops chan OpWithTime
 
-type mongoOpStream struct {
-	Ops chan mongoproto.Op
-
-	firstSeen    time.Time
-	opsWithTimes chan OpWithTime
+	FirstSeen    time.Time
+	unorderedOps chan OpWithTime
 	opHeap       *orderedOps
 
 	started bool
 	mu      sync.Mutex // for debugging
 }
 
-func NewMongoOpStream(heapBufSize int) *mongoOpStream {
+func NewMongoOpStream(heapBufSize int) *MongoOpStream {
 	h := make(orderedOps, 0, heapBufSize)
-	s := &mongoOpStream{
-		Ops:          make(chan mongoproto.Op),
-		opsWithTimes: make(chan OpWithTime),
+	s := &MongoOpStream{
+		Ops:          make(chan OpWithTime), // ordered
+		unorderedOps: make(chan OpWithTime), // unordered
 		opHeap:       &h,
 	}
 	heap.Init(s.opHeap)
@@ -43,7 +41,7 @@ func NewMongoOpStream(heapBufSize int) *mongoOpStream {
 	return s
 }
 
-func (s *mongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
+func (s *MongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
 	r := tcpreaderwrapper.NewReaderStreamWrapper()
 	if !s.started {
 		s.started = true
@@ -53,41 +51,35 @@ func (s *mongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
 	return &r
 }
 
-func (s *mongoOpStream) Close() error {
-	close(s.opsWithTimes)
-	s.opsWithTimes = nil
+func (s *MongoOpStream) Close() error {
+	close(s.unorderedOps)
+	s.unorderedOps = nil
 	return nil
 }
 
-func (s *mongoOpStream) SetFirstSeen(t time.Time) {
-	s.firstSeen = t
+func (s *MongoOpStream) SetFirstSeen(t time.Time) {
+	s.FirstSeen = t
 }
 
-func (s *mongoOpStream) handleOps() {
+func (s *MongoOpStream) handleOps() {
 	defer close(s.Ops)
-	for op := range s.opsWithTimes {
+	for op := range s.unorderedOps {
 		heap.Push(s.opHeap, op)
 		if len(*s.opHeap) == cap(*s.opHeap) {
-			op := heap.Pop(s.opHeap).(OpWithTime)
-			fmt.Printf("%f %v\n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
-			s.Ops <- op.Op
-			//s.Ops <- s.opHeap.Pop().(OpWithTime).Op
+			s.Ops <- heap.Pop(s.opHeap).(OpWithTime)
 		}
 	}
 	for len(*s.opHeap) > 0 {
-		op := heap.Pop(s.opHeap).(OpWithTime)
-		fmt.Printf("%f %v \n", float64(op.Seen.Sub(s.firstSeen))/10e8, op.Op)
-		s.Ops <- op.Op
-		//s.Ops <- s.opHeap.Pop().(OpWithTime).Op
+		s.Ops <- heap.Pop(s.opHeap).(OpWithTime)
 	}
 }
 
-func (s *mongoOpStream) readOp(r io.Reader) (mongoproto.Op, error) {
+func (s *MongoOpStream) readOp(r io.Reader) (mongoproto.Op, error) {
 	return mongoproto.OpFromReader(r)
 }
 
-func (s *mongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
-	lastSeen := s.firstSeen
+func (s *MongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
+	lastSeen := s.FirstSeen
 	for {
 		op, err := s.readOp(r)
 		if err == io.EOF {
@@ -123,7 +115,7 @@ func (s *mongoOpStream) handleStream(r *tcpreaderwrapper.ReaderStreamWrapper) {
 				seen = r.Seen
 			}
 		}
-		s.opsWithTimes <- OpWithTime{op, seen}
+		s.unorderedOps <- OpWithTime{op, seen}
 		r.Reassemblies = r.Reassemblies[:0]
 	}
 }
