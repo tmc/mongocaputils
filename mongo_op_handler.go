@@ -25,8 +25,7 @@ type MongoOpStream struct {
 	unorderedOps chan OpWithTime
 	opHeap       *orderedOps
 
-	started bool
-	mu      sync.Mutex // for debugging
+	mu sync.Mutex // for debugging
 }
 
 func NewMongoOpStream(heapBufSize int) *MongoOpStream {
@@ -43,9 +42,6 @@ func NewMongoOpStream(heapBufSize int) *MongoOpStream {
 
 func (s *MongoOpStream) New(a, b gopacket.Flow) tcpassembly.Stream {
 	r := tcpreaderwrapper.NewReaderStreamWrapper()
-	if !s.started {
-		s.started = true
-	}
 	log.Println("starting stream", a, b)
 	go s.handleStream(&r)
 	return &r
