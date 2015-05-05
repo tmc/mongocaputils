@@ -9,6 +9,10 @@ var (
 	ErrInvalidSize = errors.New("mongoproto: got invalid document size")
 )
 
+const (
+	maximumDocumentSize = 16 * 1024 * 1024 // 16MB max
+)
+
 // CopyMessage copies reads & writes an entire message.
 func CopyMessage(w io.Writer, r io.Reader) error {
 	h, err := ReadHeader(r)
@@ -31,6 +35,9 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 	}
 	size := getInt32(sizeRaw[:], 0)
 	if size < 0 {
+		return nil, ErrInvalidSize
+	}
+	if size > maximumDocumentSize {
 		return nil, ErrInvalidSize
 	}
 	doc := make([]byte, size)
