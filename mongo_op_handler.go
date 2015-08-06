@@ -10,9 +10,9 @@ import (
 
 	"container/heap"
 
-	"code.google.com/p/gopacket"
-	"code.google.com/p/gopacket/tcpassembly"
-	"code.google.com/p/gopacket/tcpassembly/tcpreader"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/tcpassembly"
+	"github.com/google/gopacket/tcpassembly/tcpreader"
 
 	"github.com/tmc/mongocaputils/mongoproto"
 	"github.com/tmc/mongocaputils/tcpreaderwrapper"

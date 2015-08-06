@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"code.google.com/p/gopacket/pcap"
+	"github.com/google/gopacket/pcap"
 	"github.com/tmc/mongocaputils"
 	"github.com/tmc/mongocaputils/mongoproto"
 )
