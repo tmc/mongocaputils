@@ -4,7 +4,7 @@ package tcpreaderwrapper
 import (
 	"time"
 
-	"code.google.com/p/gopacket/tcpassembly"
+	"github.com/google/gopacket/tcpassembly"
 )
 
 // ReassemblyInfo represents the metadata about a tcpassembly.Reassembly

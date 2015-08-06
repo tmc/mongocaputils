@@ -3,8 +3,8 @@
 package tcpreaderwrapper
 
 import (
-	"code.google.com/p/gopacket/tcpassembly"
-	"code.google.com/p/gopacket/tcpassembly/tcpreader"
+	"github.com/google/gopacket/tcpassembly"
+	"github.com/google/gopacket/tcpassembly/tcpreader"
 )
 
 type ReaderStreamWrapper struct {
