@@ -58,7 +58,7 @@ func (op *OpInsert) FromReader(r io.Reader) error {
 	op.Documents = make([][]byte, 0)
 
 	docLen := 0
-	for len(name)+1+4+docLen < int(op.Header.MessageLength) {
+	for len(name)+1+4+docLen < int(op.Header.MessageLength)-MsgHeaderLen {
 		doc, err := ReadDocument(r)
 		if err != nil {
 			return err

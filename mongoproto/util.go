@@ -50,7 +50,7 @@ func ReadDocument(r io.Reader) ([]byte, error) {
 	setInt32(doc, 0, size)
 
 	if _, err := io.ReadFull(r, doc[4:]); err != nil {
-		return nil, err
+		return doc, err
 	}
 	return doc, nil
 }
