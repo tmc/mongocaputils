@@ -32,7 +32,7 @@ func main() {
 		defer close(ch)
 		for op := range m.Ops {
 			if _, ok := op.Op.(*mongoproto.OpUnknown); !ok {
-				fmt.Printf("%f %v\n", float64(op.Seen.Sub(m.FirstSeen))/10e8, op.Op)
+				fmt.Printf("%f %v\n", float64(op.Seen.Sub(m.FirstSeen))/10e8, op)
 			}
 		}
 	}()

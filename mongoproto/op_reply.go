@@ -56,6 +56,7 @@ func (op *OpReply) FromReader(r io.Reader) error {
 	if _, err := io.ReadFull(r, b[:]); err != nil {
 		return err
 	}
+
 	op.Flags = OpReplyFlags(getInt32(b[:], 0))
 	op.CursorID = getInt64(b[:], 4)
 	op.StartingFrom = getInt32(b[:], 12)
