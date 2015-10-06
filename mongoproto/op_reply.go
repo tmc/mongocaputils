@@ -93,6 +93,25 @@ func (op *OpReply) fromWire(b []byte) {
 	}
 }
 
+func (op *OpReply) WriteTo(w io.Writer) error {
+	if err := op.Header.WriteTo(w); err != nil {
+		return err
+	}
+	r := leWriter{w: w}
+	r.Write(op.Flags)
+	r.Write(op.CursorID)
+	r.Write(op.StartingFrom)
+	err := r.Write(op.NumberReturned)
+	if err != nil {
+		return err
+	}
+	for _, doc := range op.Documents {
+		//r.Write(int32(len(doc)))
+		io.Copy(w, bytes.NewReader(doc))
+	}
+	return nil
+}
+
 func (op *OpReply) toWire() []byte {
 	return nil
 }

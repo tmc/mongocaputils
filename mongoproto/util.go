@@ -1,6 +1,7 @@
 package mongoproto
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 )
@@ -81,6 +82,7 @@ func readCString(b []byte) string {
 
 // all data in the MongoDB wire protocol is little-endian.
 // all the read/write functions below are little-endian.
+
 func getInt32(b []byte, pos int) int32 {
 	return (int32(b[pos+0])) |
 		(int32(b[pos+1]) << 8) |
@@ -104,4 +106,17 @@ func getInt64(b []byte, pos int) int64 {
 		(int64(b[pos+5]) << 40) |
 		(int64(b[pos+6]) << 48) |
 		(int64(b[pos+7]) << 56)
+}
+
+type leWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (l *leWriter) Write(data interface{}) error {
+	if l.err != nil {
+		return l.err
+	}
+	l.err = binary.Write(l.w, binary.LittleEndian, data)
+	return l.err
 }
